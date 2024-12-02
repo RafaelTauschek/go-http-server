@@ -96,6 +96,14 @@ type User struct {
 	Email     string    `json:"email"`
 }
 
+type Chirp struct {
+	ID        uuid.UUID `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Body      string    `json:"body"`
+	UserId    uuid.UUID `json:"user_id"`
+}
+
 func (cfg *apiConfig) handlerCreateUser(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
 		Email string `json:"email"`
@@ -120,6 +128,94 @@ func (cfg *apiConfig) handlerCreateUser(w http.ResponseWriter, r *http.Request) 
 		CreatedAt: user.CreatedAt,
 		UpdatedAt: user.UpdatedAt,
 		Email:     user.Email,
+	})
+}
+
+func (cfg *apiConfig) handlerGetChirp(w http.ResponseWriter, r *http.Request) {
+	param := r.PathValue("chirpID")
+
+	if param == "" {
+		respondWithError(w, http.StatusBadRequest, "No parameter provided", nil)
+		return
+	}
+
+	chirpID := uuid.MustParse(param)
+
+	chirp, err := cfg.db.GetChirpById(context.Background(), chirpID)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "No chirp found", err)
+	}
+
+	respondWithJSON(w, http.StatusOK, Chirp{
+		ID:        chirp.ID,
+		CreatedAt: chirp.CreatedAt,
+		UpdatedAt: chirp.UpdatedAt,
+		Body:      chirp.Body,
+		UserId:    chirp.UserID,
+	})
+}
+
+func (cfg *apiConfig) handlerGetChirps(w http.ResponseWriter, r *http.Request) {
+
+	data, err := cfg.db.GetChrips(context.Background())
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Couldn't retrieve chrips", err)
+		return
+	}
+
+	var chrips []Chirp
+
+	for _, chirp := range data {
+		chrips = append(chrips, Chirp{
+			ID:        chirp.ID,
+			CreatedAt: chirp.CreatedAt,
+			UpdatedAt: chirp.UpdatedAt,
+			Body:      chirp.Body,
+			UserId:    chirp.UserID,
+		})
+	}
+
+	respondWithJSON(w, http.StatusOK, chrips)
+}
+
+func (cfg *apiConfig) handlerAddChirps(w http.ResponseWriter, r *http.Request) {
+	type parameters struct {
+		Body    string    `json:"body"`
+		User_id uuid.UUID `json:"user_id"`
+	}
+
+	decoder := json.NewDecoder(r.Body)
+	params := parameters{}
+
+	err := decoder.Decode(&params)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Couldn't decode parameters", err)
+		return
+	}
+
+	if len(params.Body) > 140 {
+		respondWithError(w, http.StatusBadRequest, "Chirp is to long", nil)
+		return
+	}
+
+	val := profaneFilter(params.Body)
+
+	chrip, err := cfg.db.CreateChirp(context.Background(), database.CreateChirpParams{
+		Body:   val,
+		UserID: params.User_id,
+	})
+
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Couldn't  create chirp", err)
+		return
+	}
+
+	respondWithJSON(w, http.StatusCreated, Chirp{
+		ID:        chrip.ID,
+		CreatedAt: chrip.CreatedAt,
+		UpdatedAt: chrip.UpdatedAt,
+		Body:      chrip.Body,
+		UserId:    chrip.UserID,
 	})
 }
 
@@ -170,6 +266,9 @@ func main() {
 	mux.Handle("/app/", fsHandler)
 	mux.HandleFunc("GET /api/healthz", handlerReadiness)
 	mux.HandleFunc("POST /api/validate_chirp", handlerChirpsValidate)
+	mux.HandleFunc("POST /api/chirps", apiCfg.handlerAddChirps)
+	mux.HandleFunc("GET /api/chirps", apiCfg.handlerGetChirps)
+	mux.HandleFunc("GET /api/chirps/{chirpID}", apiCfg.handlerGetChirp)
 	mux.HandleFunc("POST /api/users", apiCfg.handlerCreateUser)
 	mux.HandleFunc("GET /admin/metrics", func(w http.ResponseWriter, r *http.Request) {
 		serverHits := apiCfg.fileserverHits.Load()
