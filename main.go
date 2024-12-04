@@ -17,6 +17,7 @@ type apiConfig struct {
 	db             *database.Queries
 	platform       string
 	secret         string
+	apikey         string
 }
 
 func main() {
@@ -33,6 +34,7 @@ func main() {
 	apiCfg.db = database.New(db)
 
 	apiCfg.secret = os.Getenv("SECRET")
+	apiCfg.apikey = os.Getenv("POLKA_KEY")
 
 	fsHandler := apiCfg.middlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir("."))))
 	mux.Handle("/app/", fsHandler)
@@ -52,6 +54,8 @@ func main() {
 	mux.HandleFunc("GET /api/chirps", apiCfg.handlerGetChirps)
 	mux.HandleFunc("GET /api/chirps/{chirpID}", apiCfg.handlerGetChirp)
 	mux.HandleFunc("DELETE /api/chirps/{chirpID}", apiCfg.handlerDeleteChirp)
+
+	mux.HandleFunc("POST /api/polka/webhooks", apiCfg.handlerWebhook)
 
 	server := &http.Server{
 		Addr:    ":8080",

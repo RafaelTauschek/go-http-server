@@ -75,7 +75,7 @@ func GetBearerToken(headers http.Header) (string, error) {
 	auth := headers.Get("Authorization")
 
 	if auth == "" {
-		return "", errors.New("no authorization header present")
+		return "", errors.New("no authorization header provided")
 	}
 
 	splitted := strings.Split(auth, " ")
@@ -86,6 +86,26 @@ func GetBearerToken(headers http.Header) (string, error) {
 
 	if strings.ToLower(splitted[0]) != "bearer" {
 		return "", errors.New("no bearer token provided")
+	}
+
+	return splitted[1], nil
+}
+
+func GetAPIKey(headers http.Header) (string, error) {
+	auth := headers.Get("Authorization")
+
+	if auth == "" {
+		return "", errors.New("no authorization header provided")
+	}
+
+	splitted := strings.Split(auth, " ")
+
+	if len(splitted) != 2 {
+		return "", errors.New("parameters don't match")
+	}
+
+	if strings.ToLower(splitted[0]) != "apikey" {
+		return "", errors.New("no apikey provided")
 	}
 
 	return splitted[1], nil
