@@ -33,13 +33,13 @@ func CheckPasswordHash(password, hash string) error {
 	return nil
 }
 
-func MakeJWT(userID uuid.UUID, tokenSecret string, expiresIn time.Duration) (string, error) {
-	time := time.Now().UTC()
+func MakeJWT(userID uuid.UUID, tokenSecret string) (string, error) {
+	currentTime := time.Now().UTC()
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.RegisteredClaims{
 		Issuer:    "chirpy",
-		IssuedAt:  jwt.NewNumericDate(time),
-		ExpiresAt: jwt.NewNumericDate(time.Add(expiresIn)),
+		IssuedAt:  jwt.NewNumericDate(currentTime),
+		ExpiresAt: jwt.NewNumericDate(currentTime.Add(time.Duration(time.Hour))),
 		Subject:   userID.String(),
 	})
 

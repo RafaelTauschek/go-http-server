@@ -3,7 +3,6 @@ package auth
 import (
 	"net/http"
 	"testing"
-	"time"
 
 	"github.com/google/uuid"
 )
@@ -84,7 +83,7 @@ func TestValidateJWT(t *testing.T) {
 		{
 			name: "valid token",
 			setupToken: func() string {
-				token, err := MakeJWT(userID, secret, time.Hour)
+				token, err := MakeJWT(userID, secret)
 				if err != nil {
 					t.Fatalf("failed to create test token: %v", err)
 				}
@@ -96,7 +95,7 @@ func TestValidateJWT(t *testing.T) {
 		{
 			name: "expired token",
 			setupToken: func() string {
-				token, err := MakeJWT(userID, secret, -time.Hour)
+				token, err := MakeJWT(userID, secret)
 				if err != nil {
 					t.Fatalf("failed to create test token: %v", err)
 				}
@@ -108,7 +107,7 @@ func TestValidateJWT(t *testing.T) {
 		{
 			name: "wrong secret",
 			setupToken: func() string {
-				token, err := MakeJWT(userID, wrongSecret, time.Hour)
+				token, err := MakeJWT(userID, wrongSecret)
 				if err != nil {
 					t.Fatalf("failed to create test token: %v", err)
 				}
