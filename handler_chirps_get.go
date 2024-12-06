@@ -3,13 +3,47 @@ package main
 import (
 	"context"
 	"net/http"
+	"sort"
 
+	"github.com/RafaelTauschek/http-server/internal/database"
 	"github.com/google/uuid"
 )
 
-func (cfg *apiConfig) handlerGetChirps(w http.ResponseWriter, r *http.Request) {
+func (cfg *apiConfig) getSortedChirps(ctx context.Context, id, sortDirection string) ([]database.Chirp, error) {
+	var data []database.Chirp
+	var err error
 
-	data, err := cfg.db.GetChrips(context.Background())
+	if id != "" {
+		data, err = cfg.db.GetChirpsByUser(ctx, uuid.MustParse(id))
+	} else {
+		data, err = cfg.db.GetChrips(ctx)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	sortFunc := func(i, j int) bool {
+		if sortDirection == "desc" {
+			return data[i].CreatedAt.After(data[j].CreatedAt)
+		}
+		return data[i].CreatedAt.Before(data[j].CreatedAt)
+	}
+
+	sort.Slice(data, sortFunc)
+	return data, nil
+}
+
+func (cfg *apiConfig) handlerGetChirps(w http.ResponseWriter, r *http.Request) {
+	id := r.URL.Query().Get("author_id")
+	sort := r.URL.Query().Get("sort")
+	sortDirection := "asc"
+
+	if sort == "desc" {
+		sortDirection = "desc"
+	}
+
+	data, err := cfg.getSortedChirps(context.Background(), id, sortDirection)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Couldn't retrieve chrips", err)
 		return
